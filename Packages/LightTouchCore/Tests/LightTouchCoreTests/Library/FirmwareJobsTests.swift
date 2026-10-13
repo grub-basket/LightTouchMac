@@ -301,6 +301,7 @@ import os
                 if chosen {
                     h.jobs.skipsSetup = [id]
                     h.jobs.jailbreaks = [id]
+                    h.jobs.cellulars = [id]
                 }
                 h.jobs.downloadAndPrepare(try #require(catalog.entry(id: id)))
                 await h.settle(id)
@@ -313,6 +314,18 @@ import os
             #expect(seen["k48ap-9B206 true"]?.contains("--jailbreak") == true, "5.1.1, chosen")
             #expect(seen["k48ap-8C148 true"]?.contains("--jailbreak") == true, "4.2.1, chosen")
             #expect(seen["k48ap-9B206 false"]?.contains("--jailbreak") == false, "not chosen")
+            #expect(seen["k48ap-8C148 true"]?.contains("--cellular") == true, "the iPad's Wi-Fi + 3G model, chosen")
+            #expect(seen["k48ap-9B206 false"]?.contains("--cellular") == false, "not chosen")
+        }
+    }
+
+    /// Wi-Fi + 3G is the iPad's choice alone: every other board is one model.
+    @Test func cellularIsOfferedForTheIPadOnly() throws {
+        let catalog = try FirmwareCatalog.load(from: LibraryFixtures.shippedCatalog)
+        for (id, offered) in [
+            ("k48ap-7B500", true), ("k48ap-9B206", true), ("n90ap-8C148", false), ("n72ap-7E18", false),
+        ] {
+            #expect(FirmwareJobs.offersCellular(try #require(catalog.entry(id: id))) == offered, "\(id)")
         }
     }
 

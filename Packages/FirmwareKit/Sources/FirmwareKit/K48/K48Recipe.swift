@@ -56,6 +56,11 @@ final class K48Board: Board {
         return options
     }
     var ident: UnitIdentity?
+    /// The iPad prepared as the Wi-Fi + 3G model (recipe option `cellular`, DeviceLock.cellular): the same board and
+    /// IPSW with the 3GS's modem (the machine's baseband=on), an IMEI in its identity and the 3G model number.
+    let cellular: Bool
+    /// The 16 GB Wi-Fi + 3G iPad's model number (the Wi-Fi model's is UnitIdentity.iPadModels').
+    static let cellularModel = "MC349"
     /// The keybag and seal one-shots' limit. 7.x's launchd starts our RunAtLoad daemons (it_seal among them) about
     /// 170 s into the boot, and it_seal halts 40 s later: modem-on 7.0-7.0.6 seals took 118-229 s, 7.1.2's about
     /// 300 s, longer under host load. Earlier releases seal well inside 300 s.
@@ -132,6 +137,10 @@ final class K48Board: Board {
         }
         iboot = strategy == "iboot"
         dataProtection = recipe.options["writable_nor"] == true
+        cellular = recipe.options["cellular"] == true
+        guard !cellular || o.entry.board == "k48ap" else {
+            throw FirmwareError(.unsupported, "\(o.entry.id): only the iPad has a Wi-Fi + 3G model")
+        }
     }
 
     func check(_ c: Recipe.Context) throws {
@@ -147,9 +156,10 @@ final class K48Board: Board {
         self.helper = helper
         patcher = K48IBoot.patcher(helper: helper)
         Machines.helper = helper
-        guard let hardware = HostRuntime.Board(rawValue: board)?.hardware else {
+        guard var hardware = HostRuntime.Board(rawValue: board)?.hardware else {
             throw FirmwareError(.internal, "\(helper.lastPathComponent)'s emulator library has no machine for \(board)")
         }
+        if cellular { hardware.hasCellular = true }  // the seal boots decide activation with the modem, as every boot
         self.hardware = hardware
     }
 
@@ -173,10 +183,10 @@ final class K48Board: Board {
         var ident = try UnitIdentity.synthesize(
             seed: seed,
             storage: recipe.storage,
-            modelNumber: kbootBoard ? a4.modelNumber : nil
+            modelNumber: kbootBoard ? a4.modelNumber : cellular ? Self.cellularModel : nil
         )
         // The radio boards: the modem reports the IMEI, and lockdownd/MobileGestalt hash it into the UDID.
-        if HostRuntime.Board(rawValue: board)?.kbootPhone == true { ident = ident.addingIMEI(seed: seed) }
+        if HostRuntime.Board(rawValue: board)?.kbootPhone == true || cellular { ident = ident.addingIMEI(seed: seed) }
         self.ident = ident
         return ident
     }

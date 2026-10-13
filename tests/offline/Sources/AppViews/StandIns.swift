@@ -14,6 +14,7 @@ enum VibrationSound { static let key = "PlayVibrationSound" }
 final class EmulatorController {
     struct Instance { let name = "iPhone" }
     let instance = Instance()
+    let profile = Board.n90
     var carrierSettings = CarrierSettings()
     func setCarrierSettings(_ settings: CarrierSettings) -> Bool { true }
     func modem(_ property: String, _ value: String, done: @escaping @MainActor (Bool) -> Void) {}

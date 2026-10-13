@@ -29,7 +29,8 @@ public nonisolated final class PreparationJob: @unchecked Sendable {
             log: URL,
             blob: URL? = nil,
             skipSetup: Bool = false,
-            jailbreak: Bool = false
+            jailbreak: Bool = false,
+            cellular: Bool = false
         ) {
             self.entry = entry
             self.ipsw = ipsw
@@ -43,6 +44,7 @@ public nonisolated final class PreparationJob: @unchecked Sendable {
             self.blob = blob
             self.skipSetup = skipSetup
             self.jailbreak = jailbreak
+            self.cellular = cellular
         }
         public var entry: FirmwareCatalog.Entry
         public var ipsw: URL
@@ -62,6 +64,8 @@ public nonisolated final class PreparationJob: @unchecked Sendable {
         public var skipSetup = false
         /// Prepare the device jailbroken (firmwarekit create --jailbreak).
         public var jailbreak = false
+        /// Prepare the iPad as its Wi-Fi + 3G model (firmwarekit create --cellular).
+        public var cellular = false
     }
 
     public enum Event: Sendable, Equatable {
@@ -193,7 +197,8 @@ public nonisolated final class PreparationJob: @unchecked Sendable {
                         cache: request.cache,
                         sibling: request.sibling.map { (siblingFile, $0.ipsw) },
                         skipSetup: request.skipSetup,
-                        jailbreak: request.jailbreak
+                        jailbreak: request.jailbreak,
+                        cellular: request.cellular
                     ).arguments
             }
             let log = try FileDescriptor.open(request.log.path, .writeOnly)

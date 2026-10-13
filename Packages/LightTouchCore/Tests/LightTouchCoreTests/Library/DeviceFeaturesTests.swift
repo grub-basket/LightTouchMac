@@ -27,9 +27,10 @@ struct DeviceFeaturesTests {
         let n45 = Self.features("n45ap-4A102")
         #expect(!n45.cellular && !n45.vibration && !n45.compass && !n45.appInstalls && !n45.freeFormScreen)
         #expect(!n45.skipSetup && !n45.jailbreak && n45.fileSystem && n45.audio)
-        // iPad 3.2.2: a compass but no modem or motor; before iOS 5, no Skip Setup; SSH packaged for 7B500.
+        // iPad 3.2.2: a compass, a modem in its Wi-Fi + 3G model, no motor; before iOS 5, no Skip Setup; SSH packaged
+        // for 7B500.
         let k48 = Self.features("k48ap-7B500")
-        #expect(!k48.cellular && !k48.location && k48.compass && !k48.vibration && !k48.skipSetup && k48.developerTools)
+        #expect(k48.cellular && !k48.location && k48.compass && !k48.vibration && !k48.skipSetup && k48.developerTools)
         #expect(Self.features("k48ap-9B206").skipSetup && !Self.features("k48ap-9B206").developerTools)
         // The iPod touch 2G carries its tools from preparation, package or not; the 3.1.3 image the app ships is
         // never prepared, so it offers no Jailbreak, where a downloaded 3.1.2 does.

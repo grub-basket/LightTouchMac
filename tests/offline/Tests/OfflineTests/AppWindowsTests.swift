@@ -361,6 +361,20 @@ extension SharedState {
                 one.map { $0 >= 40 } == true && five.map { $0 > one! + 10 } == true,
                 "the message field isn't multiline: \(String(describing: one)) -> \(String(describing: five))"
             )
+            // The Wi-Fi + 3G iPad's panel: the network, no calls or SMS (it has no Phone or Messages).
+            let ipad = NSHostingView(rootView: CarrierPanel(model: model, voice: false))
+            window.contentView = ipad
+            for _ in 0..<5 {
+                RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+                ipad.layoutSubtreeIfNeeded()
+            }
+            let fields = Self.descendants(ipad).compactMap { ($0 as? NSTextField)?.stringValue }
+            #expect(fields.contains(model.carrierName), "the iPad's panel has no Carrier field: \(fields)")
+            let texts = Self.descendants(ipad).compactMap { ($0 as? NSTextView)?.string }
+            #expect(
+                !fields.contains(model.callNumber) && !(fields + texts).contains(model.smsText),
+                "calls or SMS on the iPad: \(fields) \(texts)"
+            )
         }
 
         /// The web proxy sheet: Cancel and OK (the default), the choices enabling each other, the archive date kept in the

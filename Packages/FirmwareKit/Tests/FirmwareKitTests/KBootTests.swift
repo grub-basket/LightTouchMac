@@ -150,6 +150,27 @@ struct KBootTests {
         #expect(out.value("chosen", "board-id") == DeviceTree.Value.le([0]))
     }
 
+    /// K48: the Wi-Fi iPad's baseband node is unmatched (renamed nobb); a Wi-Fi + 3G iPad's identity, which has an
+    /// IMEI, keeps it matchable for the machine's modem, as the iPhones' boards do.
+    @Test func k48BasebandByModel() throws {
+        let n = { (s: String) in Data((s + "\0").utf8) }
+        let bb = Self.node([
+            ("name", n("baseband")), ("compatible", n("baseband,n82")), ("device_type", n("baseband")),
+            ("device-imei", Self.z(16)),
+        ])
+        let tree = try DeviceTree(Self.deviceTree(armIO: [Self.node([("name", n("spi0"))])], top: [bb]))
+        #expect(KBoot.Board.of(tree) == .k48)
+        for cellular in [false, true] {
+            let identity = cellular ? Self.placeholder.addingIMEI(seed: "k48-3g") : Self.placeholder
+            let img = try KBoot.build(kernel: Self.kernel(at: 0x8000_0000), deviceTree: tree.data, identity: identity)
+            let r0 = Int(img.bootArgsPA - img.loadPA)
+            let dtp = Int(Self.u32(img.image, r0 + 0x30)) - 0x8000_0000
+            let dt = try DeviceTree(img.image[dtp..<dtp + Int(Self.u32(img.image, r0 + 0x34))])
+            #expect(dt.contains("baseband") == cellular && dt.contains("nobb") == !cellular)
+            if cellular { #expect(dt.value("baseband", "compatible") == n("baseband,n82")) }
+        }
+    }
+
     /// N88 (S5L8920): its own platform-name/chip-id, a 320x480 panel, its own NOR kept (nothing grafted) with
     /// boot-from-nand renamed away, the baseband node unmatched (renamed nobb) with test identity in it.
     @Test func n88Board() throws {

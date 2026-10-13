@@ -1,5 +1,5 @@
-// The Carrier panel: the fake cellular network of a running iPhone (M68, N88, N90), its calls and its SMS, and where
-// a modem with a GPS receiver (the 3GS's) says the phone is.
+// The Carrier panel: the fake cellular network of a running iPhone (M68, N88, N90) or Wi-Fi + 3G iPad, an iPhone's
+// calls and SMS, and where a modem with a GPS receiver (the 3GS's) says the phone is.
 // Network settings are the device's (EmulatorController.carrierSettings, applied at every boot); calls and SMS go
 // straight to the modem (qemu-ios ios-baseband's actions), and its state is polled once a second while visible.
 
@@ -14,6 +14,7 @@ extension EmulatorController: CarrierBackend {}
 
 struct CarrierPanel: View {
     @Bindable var model: CarrierPanelModel
+    var voice = true
     @State private var camera = MapCameraPosition.automatic
     @State private var macLocation = MacLocation()
 
@@ -62,40 +63,43 @@ struct CarrierPanel: View {
             } footer: {
                 Text("Signal indicator may take a moment to update.")
             }
-            Section("Calls") {
-                HStack {
-                    TextField("Caller", text: $model.callNumber)
-                    Button("Ring") { model.ring() }.disabled(!model.canRing)
+            // The iPad (its Wi-Fi + 3G model) has data and no Phone or Messages: no calls, no SMS.
+            if voice {
+                Section("Calls") {
+                    HStack {
+                        TextField("Caller", text: $model.callNumber)
+                        Button("Ring") { model.ring() }.disabled(!model.canRing)
+                    }
+                    HStack {
+                        Button("Answer") { model.answer() }.disabled(!model.canAnswer)
+                            .help("The other end picks up the call the phone is making")
+                        Button("Hang Up") { model.hangUp() }.disabled(!model.canHangUp)
+                            .help("The other end ends the call, ringing or connected")
+                    }
+                    LabeledContent(
+                        "State",
+                        value: model.callState.capitalized + (model.status?.emergencyCall == true ? " (Emergency)" : "")
+                    )
+                    LabeledContent(
+                        "Last Dialed",
+                        value: (model.status?.lastDialed).flatMap { $0.isEmpty ? nil : $0 } ?? "—"
+                    )
                 }
-                HStack {
-                    Button("Answer") { model.answer() }.disabled(!model.canAnswer)
-                        .help("The other end picks up the call the phone is making")
-                    Button("Hang Up") { model.hangUp() }.disabled(!model.canHangUp)
-                        .help("The other end ends the call, ringing or connected")
-                }
-                LabeledContent(
-                    "State",
-                    value: model.callState.capitalized + (model.status?.emergencyCall == true ? " (Emergency)" : "")
-                )
-                LabeledContent(
-                    "Last Dialed",
-                    value: (model.status?.lastDialed).flatMap { $0.isEmpty ? nil : $0 } ?? "—"
-                )
-            }
-            Section("SMS") {
-                TextField("From", text: $model.smsNumber)
-                HStack(alignment: .bottom) {
-                    TextField("Message", text: $model.smsText, prompt: Text("Type your SMS…"), axis: .vertical)
-                        .labelsHidden().lineLimit(3...6).onSubmit { model.sendSMS() }
-                    Button("Send") { model.sendSMS() }.disabled(!model.smsValid)
-                }
-                if model.sent.isEmpty {
-                    Text("Messages the phone sends appear here.").foregroundStyle(.secondary)
-                } else {
-                    ForEach(model.sent) { sms in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("To \(sms.number)").font(.caption).foregroundStyle(.secondary)
-                            Text(sms.text).textSelection(.enabled)
+                Section("SMS") {
+                    TextField("From", text: $model.smsNumber)
+                    HStack(alignment: .bottom) {
+                        TextField("Message", text: $model.smsText, prompt: Text("Type your SMS…"), axis: .vertical)
+                            .labelsHidden().lineLimit(3...6).onSubmit { model.sendSMS() }
+                        Button("Send") { model.sendSMS() }.disabled(!model.smsValid)
+                    }
+                    if model.sent.isEmpty {
+                        Text("Messages the phone sends appear here.").foregroundStyle(.secondary)
+                    } else {
+                        ForEach(model.sent) { sms in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("To \(sms.number)").font(.caption).foregroundStyle(.secondary)
+                                Text(sms.text).textSelection(.enabled)
+                            }
                         }
                     }
                 }
@@ -204,7 +208,7 @@ extension GPSLocation {
     let model: CarrierPanelModel
     init(emulator: EmulatorController) {
         model = CarrierPanelModel(backend: emulator)
-        let hosting = NSHostingController(rootView: CarrierPanel(model: model))
+        let hosting = NSHostingController(rootView: CarrierPanel(model: model, voice: emulator.profile.isPhone))
         let panel = NSPanel(contentViewController: hosting)
         panel.styleMask = [.titled, .closable, .resizable, .utilityWindow]
         panel.title = "Carrier — \(emulator.instance.name)"

@@ -383,7 +383,8 @@ public enum KBoot {
                 try dt.set("arm-io/mipi-dsim/lcd", k, .u32(0x00A1_D13C))
             }
         }
-        if dt.contains("baseband"), !board.radio {  // Wi-Fi iPad: no radio, so unmatch and unname the N82 baseband node
+        // Wi-Fi iPad: no radio, so unmatch and unname the N82 baseband node (a Wi-Fi + 3G iPad's identity has an IMEI)
+        if dt.contains("baseband"), !board.radio, identity["imei"] == nil {
             for (k, v) in [("compatible", "none"), ("device_type", "none"), ("name", "nobb")] {
                 try dt.set("baseband", k, .string(v))
             }

@@ -233,6 +233,8 @@ public struct DeviceLock: Codable, Sendable, Equatable {
     }
     /// Prepared past Setup Assistant (the Skip Setup option): it boots to the Home screen.
     public var skippedSetup: Bool { entry?["content"]?["recipe"]?["options"]?["skip_setup"]?.bool == true }
+    /// Prepared as the iPad's Wi-Fi + 3G model (the cellular option): the board's machine with its modem.
+    public var cellular: Bool { entry?["content"]?["recipe"]?["options"]?["cellular"]?.bool == true }
     /// The entry content's board (the recipe's board, for admission steps).
     public var entryBoard: String? { entry?["content"]?["board"]?.string }
     /// Whether the preparer activated the volume (inputs.activation is a record).

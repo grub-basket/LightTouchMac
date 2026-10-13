@@ -261,7 +261,7 @@ final class EmulatorController {
     )
     /// The fake network's settings and the running modem (CarrierModem).
     @ObservationIgnored private(set) lazy var carrier = CarrierModem(
-        hasCellular: profile.hasCellular,
+        hasCellular: profile.hasCellular || lock?.cellular == true,
         settings: settingsFile,
         scope: bootScope
     ) { [weak self] in self?.link }

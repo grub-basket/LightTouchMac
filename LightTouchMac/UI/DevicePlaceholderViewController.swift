@@ -13,6 +13,8 @@ final class DevicePlaceholderViewController: NSViewController {
     var skipsSetup: (get: (String) -> Bool, set: (String, Bool) -> Void)?
     /// Each entry's Jailbreak choice (FirmwareJobs.jailbreaks); nil: no checkbox.
     var jailbreaks: (get: (String) -> Bool, set: (String, Bool) -> Void)?
+    /// Each iPad entry's Wi-Fi + 3G choice (FirmwareJobs.cellulars); nil: no checkbox.
+    var cellulars: (get: (String) -> Bool, set: (String, Bool) -> Void)?
 
     private let art = NSImageView()
     private let model = NSTextField(labelWithString: "")
@@ -41,6 +43,8 @@ final class DevicePlaceholderViewController: NSViewController {
     private let skipSetup = NSButton(checkboxWithTitle: "Skip Setup Assistant", target: nil, action: nil)
     /// Before preparing: prepare it jailbroken (FirmwareJobs.jailbreaks).
     private let jailbreak = NSButton(checkboxWithTitle: "Jailbreak", target: nil, action: nil)
+    /// Before preparing an iPad: prepare its Wi-Fi + 3G model (FirmwareJobs.cellulars).
+    private let cellular = NSButton(checkboxWithTitle: "Wi-Fi + 3G", target: nil, action: nil)
     /// The build's catalog note (untested, experimental, where a beta came from), in a popover.
     private let info = NSButton(
         image: NSImage(systemSymbolName: "info.circle", accessibilityDescription: "About This Build") ?? NSImage(),
@@ -104,6 +108,9 @@ final class DevicePlaceholderViewController: NSViewController {
         jailbreak.target = self
         jailbreak.action = #selector(jailbreakClicked(_:))
         jailbreak.toolTip = "Files shows the whole file system."
+        cellular.target = self
+        cellular.action = #selector(cellularClicked(_:))
+        cellular.toolTip = "A SIM, cellular data and the Carrier panel."
 
         let versionLine = NSStackView(views: [version, info])
         versionLine.spacing = 4
@@ -125,7 +132,7 @@ final class DevicePlaceholderViewController: NSViewController {
         // The row keeps its height with no button (running), so the lockup doesn't move between states.
         actions.heightAnchor.constraint(greaterThanOrEqualTo: primary.heightAnchor).isActive = true
         actions.detachesHiddenViews = true
-        let options = column([skipSetup, jailbreak], spacing: 6)
+        let options = column([skipSetup, jailbreak, cellular], spacing: 6)
         options.alignment = .leading
         options.detachesHiddenViews = true
         let stack = column([art, identity, stateTier, options, actions, space], spacing: 20)
@@ -212,6 +219,7 @@ final class DevicePlaceholderViewController: NSViewController {
         dontSave.isHidden = editing == nil
         skipSetup.isHidden = true
         jailbreak.isHidden = true
+        cellular.isHidden = true
         status.isHidden = false
         switch row.state {
         case .bundled, .notDownloaded, .downloaded:
@@ -223,6 +231,10 @@ final class DevicePlaceholderViewController: NSViewController {
             if row.state != .bundled, FirmwareJobs.offersJailbreak(entry), let jailbreaks {
                 jailbreak.state = jailbreaks.get(entry.id) ? .on : .off
                 jailbreak.isHidden = false
+            }
+            if row.state != .bundled, FirmwareJobs.offersCellular(entry), let cellulars {
+                cellular.state = cellulars.get(entry.id) ? .on : .off
+                cellular.isHidden = false
             }
             if !canDownload, let why = FirmwareJobs.shared.unavailableReason {
                 reason.stringValue = why
@@ -256,7 +268,7 @@ final class DevicePlaceholderViewController: NSViewController {
         case .unavailable(.requiresIPSW): status.stringValue = "Requires an IPSW"
         }
 
-        jailbreak.superview?.isHidden = skipSetup.isHidden && jailbreak.isHidden
+        jailbreak.superview?.isHidden = skipSetup.isHidden && jailbreak.isHidden && cellular.isHidden
         if row.progressHeadline == nil { bars[entry.id] = nil }
 
         if let editing {
@@ -402,6 +414,11 @@ final class DevicePlaceholderViewController: NSViewController {
     @objc private func jailbreakClicked(_ sender: NSButton) {
         guard let id = row?.entry.id else { return }
         jailbreaks?.set(id, sender.state == .on)
+    }
+
+    @objc private func cellularClicked(_ sender: NSButton) {
+        guard let id = row?.entry.id else { return }
+        cellulars?.set(id, sender.state == .on)
     }
 }
 

@@ -184,6 +184,11 @@ struct Base {
     /// The kboot boards boot as the iPad does (an armv7 offer); the rest take the armv6 package.
     var armv7: Bool { ["k48ap", "n81ap", "n90ap", "n18ap", "n88ap"].contains(board) }
     var firstGeneration: Bool { ["n45ap", "m68ap"].contains(board) }
+    /// Prepared with firmwarekit create --cellular (the iPad's Wi-Fi + 3G model).
+    var cellular: Bool {
+        (((lock["entry"] as? [String: Any])?["content"] as? [String: Any])?["recipe"] as? [String: Any])
+            .flatMap { $0["options"] as? [String: Any] }?["cellular"] as? Bool == true
+    }
 
     init(_ path: String) {
         url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardized

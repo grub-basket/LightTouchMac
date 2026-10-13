@@ -8,7 +8,8 @@ import HostRuntime
 
 public struct DeviceFeatures: Sendable, Equatable {
     public var wifi = true
-    /// A modem: calls, messages and cellular data (Board.hasCellular, the emulator's machine table).
+    /// A modem: calls, messages and cellular data (Board.hasCellular, the emulator's machine table), or the iPad's
+    /// Wi-Fi + 3G model (FirmwareJobs.offersCellular).
     public var cellular: Bool
     /// Sound out of the Mac: every boot gets Core Audio, and every board plays through it.
     public var audio = true
@@ -37,7 +38,7 @@ public struct DeviceFeatures: Sendable, Equatable {
     /// `guestPackage`: the bundled itpack has a package for the entry's board and build (GuestPackage.packaged).
     public init(_ entry: FirmwareCatalog.Entry, guestPackage: Bool) {
         let board = entry.profile
-        cellular = board?.hasCellular ?? false
+        cellular = board?.hasCellular == true || FirmwareJobs.offersCellular(entry)
         location = board?.hasGPS ?? false
         compass = board?.hasCompass ?? false
         vibration = board?.hasVibrator ?? false

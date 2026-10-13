@@ -135,6 +135,12 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
                 if on { FirmwareJobs.shared.jailbreaks.insert(id) } else { FirmwareJobs.shared.jailbreaks.remove(id) }
             }
         )
+        placeholder.cellulars = (
+            { FirmwareJobs.shared.cellulars.contains($0) },
+            { id, on in
+                if on { FirmwareJobs.shared.cellulars.insert(id) } else { FirmwareJobs.shared.cellulars.remove(id) }
+            }
+        )
         placeholder.onDropIPSW = { [weak self] urls in self?.handOffIPSWs(urls, for: self?.selectedEntry) }
         // The device keeps its screen, chassis and buttons where they reach under the collapsed console strip.
         console.split.bar.paneTakesPress = { [weak self] point in

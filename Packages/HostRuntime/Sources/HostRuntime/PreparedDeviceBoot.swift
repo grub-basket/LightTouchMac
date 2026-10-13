@@ -19,6 +19,8 @@ public struct PreparedDeviceBoot {
     private let gidBlobs: String?
     private let dieID: String?
     private let machine: [String: String]
+    /// The Wi-Fi + 3G iPad (DeviceLock.cellular): the board's machine with its modem.
+    private var cellular = false
 
     public static func prepare(
         board: Board,
@@ -57,7 +59,7 @@ public struct PreparedDeviceBoot {
         let identity = (try? Data(contentsOf: identityURL))
             .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         let unitDieID = dieID ?? (identity?["die-id"] as? [String])?.joined(separator: ":")
-        return Self(
+        var prepared = Self(
             board: board,
             boot: files.boot,
             nand: files.nand,
@@ -74,6 +76,8 @@ public struct PreparedDeviceBoot {
                     .merging(clock.map { ["rtc-epoch": String(Int64($0.timeIntervalSince1970))] } ?? [:]) { $1 }
             ) { $1 }
         )
+        prepared.cellular = lock?.cellular == true
+        return prepared
     }
 
     /// Explicit adapter for pre-library N72 regression fixtures with separate images.
@@ -161,12 +165,13 @@ public struct PreparedDeviceBoot {
         cellular: BootRecipe.Cellular = .on,
         carrier: CarrierSettings? = nil
     ) throws -> BootConfig {
-        guard let hardware = hardware ?? board.hardware else {
+        guard var hardware = hardware ?? board.hardware else {
             throw CocoaError(
                 .featureUnsupported,
                 userInfo: [NSLocalizedDescriptionKey: "The emulator library has no machine for \(board.rawValue)."]
             )
         }
+        if self.cellular { hardware.hasCellular = true }
         var config: BootConfig
         switch board.soc {
         case .s5l8900:

@@ -46,6 +46,38 @@ struct BootTests {
         }
     }
 
+    /// The iPad prepared as its Wi-Fi + 3G model (the recipe's cellular option in its lock) boots as the radio boards
+    /// do: the modem, its IMEI, the cell0 netdev and the SIM's file; the Wi-Fi iPad's lock gets none of it.
+    @Test func cellularIPadGetsTheModem() throws {
+        for cellular in [false, true] {
+            let f = try Fixture(
+                board: .k48,
+                strategy: "iboot",
+                lockFields: [
+                    "entry": ["id": "k48ap-9B206", "content": ["recipe": ["options": ["cellular": cellular]]]],
+                    "machine": ["imei": "000000001234569"],
+                ]
+            )
+            #expect(try DeviceLock.read(base: f.base)?.cellular == cellular)
+            let config = try f.prepare(.k48).configuration(
+                bootArgs: "",
+                usbAddress: nil,
+                wifi: true,
+                guestPackage: nil,
+                serial: "null",
+                audio: [],
+                netdev: "user,id=wifi0"
+            )
+            let m = config.argv[config.argv.firstIndex(of: "-M")! + 1]
+            #expect(m.hasPrefix("ipad1,") && m.contains(",baseband=on") == cellular)
+            #expect(config.argv.contains("user,id=cell0") == cellular)
+            #expect(
+                config.argv.contains("ios-baseband.sim-file=\(f.overlay.appendingPathComponent("sim").path)")
+                    == cellular
+            )
+        }
+    }
+
     /// The Carrier panel's saved settings start the modem on radio boards only.
     @Test func carrierSettingsReachRadioBoards() throws {
         var carrier = CarrierSettings()
@@ -87,7 +119,7 @@ private final class Fixture {
     var base: URL { root.appendingPathComponent("base, with spaces") }
     var overlay: URL { root.appendingPathComponent("overlay") }
     var nor: URL { root.appendingPathComponent("private-nor") }
-    init(board: Board, strategy: String?, identity: [String: Any]? = nil) throws {
+    init(board: Board, strategy: String?, identity: [String: Any]? = nil, lockFields: [String: Any] = [:]) throws {
         MachineFixtures.install()
         let fm = FileManager.default
         try fm.createDirectory(at: base.appendingPathComponent("nand"), withIntermediateDirectories: true)
@@ -97,6 +129,7 @@ private final class Fixture {
         try Data(repeating: 0x55, count: 1_048_576).write(to: base.appendingPathComponent("nor.bin"))
         var lock: [String: Any] = ["board": board.rawValue, "machine": ["aes-uid": "engine"]]
         if let strategy { lock["boot_strategy"] = strategy }
+        lock.merge(lockFields) { $1 }
         try JSONSerialization.data(withJSONObject: lock).write(to: base.appendingPathComponent("device.lock.json"))
         try JSONSerialization.data(
             withJSONObject: identity ?? [

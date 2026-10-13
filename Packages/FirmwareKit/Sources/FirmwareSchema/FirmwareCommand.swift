@@ -47,6 +47,8 @@ public enum FirmwareCommand {
         public var skipSetup = false
         @Flag(help: "Prepares the device jailbroken: afc2 (the whole file system over USB), Cydia and Substrate.")
         public var jailbreak = false
+        @Flag(help: "Prepares an iPad as the Wi-Fi + 3G model: its modem, SIM and cellular data.")
+        public var cellular = false
 
         public init() {}
         public init(
@@ -60,6 +62,7 @@ public enum FirmwareCommand {
             sibling: (entry: URL, ipsw: URL)? = nil,
             skipSetup: Bool = false,
             jailbreak: Bool = false,
+            cellular: Bool = false,
             language: String? = nil
         ) {
             self.entry = entry.path
@@ -77,6 +80,7 @@ public enum FirmwareCommand {
             glTest = false
             self.skipSetup = skipSetup
             self.jailbreak = jailbreak
+            self.cellular = cellular
             self.language = language
         }
 
@@ -94,7 +98,7 @@ public enum FirmwareCommand {
                     "sibling-ipsw": siblingIpsw, "stop-after": stopAfter?.rawValue,
                     "language": language,
                 ]) + (glTest ? ["--gl-test"] : []) + (skipSetup ? ["--skip-setup"] : [])
-                + (jailbreak ? ["--jailbreak"] : [])
+                + (jailbreak ? ["--jailbreak"] : []) + (cellular ? ["--cellular"] : [])
         }
     }
 

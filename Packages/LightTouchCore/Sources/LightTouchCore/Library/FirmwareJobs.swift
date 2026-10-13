@@ -84,6 +84,15 @@ import HostRuntime
         get { Set(defaults.stringArray(forKey: "jailbreakEntries") ?? []) }
         set { defaults.set(newValue.sorted(), forKey: "jailbreakEntries") }
     }
+    /// The entries to prepare as the iPad's Wi-Fi + 3G model (the preparation screen's checkbox; off unless chosen).
+    public var cellulars: Set<String> {
+        get { Set(defaults.stringArray(forKey: "cellularEntries") ?? []) }
+        set { defaults.set(newValue.sorted(), forKey: "cellularEntries") }
+    }
+    /// The iPad's Wi-Fi + 3G model: the same IPSW as its Wi-Fi model (every other board is one model).
+    public nonisolated static func offersCellular(_ entry: FirmwareCatalog.Entry) -> Bool {
+        entry.board == Board.k48.rawValue
+    }
     /// afc2 and Cydia from iPhone OS 2.0 on (FirmwareKit refuses the option on 1.x).
     public nonisolated static func offersJailbreak(_ entry: FirmwareCatalog.Entry) -> Bool {
         (Int(entry.version.split(separator: ".").first ?? "") ?? 0) >= 2
@@ -462,7 +471,8 @@ import HostRuntime
             log: logs.appendingPathComponent("Preparing/\(entry.id).log"),
             blob: bundled ? ipsw : nil,
             skipSetup: !bundled && Self.offersSkipSetup(entry) && skipsSetup.contains(entry.id),
-            jailbreak: !bundled && Self.offersJailbreak(entry) && jailbreaks.contains(entry.id)
+            jailbreak: !bundled && Self.offersJailbreak(entry) && jailbreaks.contains(entry.id),
+            cellular: !bundled && Self.offersCellular(entry) && cellulars.contains(entry.id)
         )
         let id = UUID()
         let job = PreparationJob(request, id: id) { [inputs, entryID = entry.id] event in

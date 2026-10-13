@@ -52,7 +52,8 @@ func preparedScenario(
     work: URL,
     name: String,
     steps: [String],
-    carrier: [String: Any]? = nil
+    carrier: [String: Any]? = nil,
+    wifi: Bool? = nil
 ) -> [String: Any] {
     let dir = work.appendingPathComponent(name)
     var prepared: [String: Any] = [
@@ -60,6 +61,7 @@ func preparedScenario(
         "serial": dir.appendingPathComponent("serial.log").path, "files": tools.files.path,
     ]
     if let carrier { prepared["carrier"] = carrier }
+    if let wifi { prepared["wifi"] = wifi }
     return ["board": base.board, "prepared": prepared, "steps": steps]
 }
 
@@ -404,11 +406,79 @@ private func describe(_ buzzes: [(start: Double, seconds: Double?)]) -> String {
 /// need --overlay, the overlay of a boot that walked Setup (`sessions single --keep` leaves one in its work
 /// directory), cloned, never changed.
 /// `emergency` (4.x and 7.x): 911 from the emergency dialer, which asks the modem first (issue 32).
+/// The iPad prepared as its Wi-Fi + 3G model (issue 57): no calls, so one case, booted without Wi-Fi so the network
+/// is the modem's: registered with the Carrier panel's saved settings, the carrier and 3G in the status bar, a page
+/// fetched over cellular data, Settings' Cellular Data, and a rename from the panel reaching the status bar.
+func ipadCellular(_ base: Base, _ args: PhoneCheck, tools: Tools, work: URL) -> Never {
+    let r = Report()
+    print("ipad cellular")
+    let page = "http://example.com/"
+    let slide = "dragshown 0.36 0.935 0.8 0.935"
+    let d = HelperDriver(
+        "cellular",
+        tools: tools,
+        work: work,
+        scenario: preparedScenario(
+            base,
+            tools: tools,
+            work: work,
+            name: "cellular",
+            steps: [
+                // Home (Rotation.swift's slide), then Settings as a user would: Data Roaming on (the test network
+                // is roaming to CommCenter, docs/baseband/commcenter-4.2.1-3gs.md) and Wi-Fi off (wifi=off keeps
+                // the card and its lease), at their switches on the portrait Settings page.
+                "boot", "lit 0.1 300", "wait 60", "modemSettle 80 240", "modemStatus", "waitagent 120", "button 0",
+                "wait 2", slide, "wait 4", "agentop launch com.apple.Preferences", "wait 8",
+                "tapword Cellular_Data", "wait 4", "ocr settings", "tapshown 0.896 0.235", "wait 3",
+                "tapword Wi-Fi", "wait 4", "tapshown 0.896 0.114", "wait 10", "ocr status",
+                "agentput \(httpget(args.inputs).path) /tmp/ltm-httpget", "spawn /tmp/ltm-httpget \(page)",
+                "modem carrier Cell Panel", "wait 6", "modemStatus", "ocr renamed", "quit", "expectExit 60",
+            ],
+            carrier: ["carrier": "Saved", "mccMNC": "00101", "registered": true, "simPresent": true, "bars": 4],
+            wifi: false
+        ),
+        environment: ["IOS_BB_TRACE": "2"]
+    )
+    r.check(d.finish(900) == 0, "cellular: scenario completed")
+    let e = d.events
+    let st: [Event] = e.find("modemStatus").map {
+        ($0.string("json").flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) } as? Event) ?? [:]
+    }
+    let settled = e.one("modemSettled")
+    r.check(!settled.isEmpty && !settled.bool("timedOut"), "cellular: the modem settled")
+    r.check(
+        st.first?.string("carrier") == "Saved" && st.first?.bool("registered") == true,
+        "cellular: registered with the saved settings (\(st.first ?? [:]))"
+    )
+    func lines(_ name: String) -> [String] { e.one("ocr", ["name": name])["lines"] as? [String] ?? [] }
+    let status = lines("status")
+    r.check(
+        status.contains { $0.contains("Saved") } && status.contains { $0.contains("3G") },
+        "cellular: the status bar shows the carrier and 3G (\(status.prefix(6)))"
+    )
+    let fetched = e.find("agent").filter { $0.string("op") == "spawn" }.first?.string("output") ?? ""
+    r.check(
+        fetched.hasPrefix("status 0") && fetched.contains("Example Domain"),
+        "cellular: \(page) over cellular data, Wi-Fi off (\(clip(fetched, 80)))"
+    )
+    let settings = lines("settings")
+    r.check(
+        settings.contains { $0.contains("Cellular Data") } && settings.contains { $0.contains("Data Roaming") },
+        "cellular: Settings' Cellular Data page (\(settings.prefix(12)))"
+    )
+    r.check(lines("renamed").contains { $0.contains("Cell Panel") }, "cellular: the panel's rename in the status bar")
+    finish(r, work: work)
+}
+
 func phone(_ args: PhoneCheck) -> Never {
     let base = Base(args.base)
-    guard ["n90ap", "n88ap", "m68ap"].contains(base.board) else { die("phone boots an n90ap, n88ap or m68ap base") }
+    let ipad = base.board == "k48ap" && base.cellular
+    guard ["n90ap", "n88ap", "m68ap"].contains(base.board) || ipad else {
+        die("phone boots an n90ap, n88ap or m68ap base, or an iPad prepared with --cellular")
+    }
     let work = workDirectory(args.inputs, "phone")
     let tools = Tools.resolve(args.inputs, work: work)
+    if ipad { ipadCellular(base, args, tools: tools, work: work) }
     var only = Set(args.only.split(separator: ",").map(String.init))
     if base.board != "n90ap" { only.remove("keyboard") }
     let r = Report()

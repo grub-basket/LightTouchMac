@@ -45,6 +45,8 @@ struct Scenario: Decodable {
         var clock: Double?
         /// An itpack whose package for the base is offered, as the app offers its bundled one.
         var itpack: String?
+        /// false: the machine without Wi-Fi (wifi=off), so the guest's network is the modem's (default on).
+        var wifi: Bool?
     }
     var dylib: String?
     var board: String?
@@ -73,7 +75,7 @@ func preparedBoot(_ p: Scenario.Prepared, hardware: DeviceInfo?) throws -> BootC
         hardware: hardware,
         bootArgs: "amfi_allow_any_signature=1 cs_enforcement_disable=1",  // the app's default (DeviceOptions.bootArgs)
         usbAddress: nil,
-        wifi: true,
+        wifi: p.wifi ?? true,
         guestPackage: try p.itpack.flatMap { pack -> String? in
             let lock = try? DeviceLock.read(base: URL(fileURLWithPath: p.base)) ?? nil
             let dir = URL(fileURLWithPath: dumpDir).appendingPathComponent("offer")

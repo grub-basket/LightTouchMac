@@ -63,7 +63,7 @@ extension MainWindowController {
             device.recipeVersion = lock?.recipeVersion
             device.skipSetup = lock?.skippedSetup
             device.jailbreak = lock?.jailbroken
-            if instance.profile?.hasCellular == true {
+            if instance.profile?.hasCellular == true || lock?.cellular == true {
                 device.carrier = emulator?.carrierSettings ?? settings.carrier ?? CarrierSettings()
             }
             if let emulator {

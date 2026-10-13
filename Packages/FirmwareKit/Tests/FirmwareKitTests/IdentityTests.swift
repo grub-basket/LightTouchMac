@@ -159,4 +159,40 @@ struct IdentityTests {
         #expect(machine["wifi-mac"] as? String == id["wifi-mac"])
         #expect(id["wifi-mac"]?.isEmpty == false)
     }
+
+    /// The Wi-Fi + 3G iPad (the cellular option): the 3G model number, a generated IMEI (the synthetic TAC) that the
+    /// UDID hashes as an iPhone's does, the lock's machine carrying it for the modem; the Wi-Fi iPad has neither.
+    @Test func k48CellularIdentity() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        for cellular in [false, true] {
+            var entry = try Oracle.entry("k48ap-7B500")
+            if cellular { entry.recipe?.options["cellular"] = true }
+            let o = Preparer.Options(entry: entry, ipsw: dir, out: dir, helper: nil, guestTools: dir)
+            let board = try K48Board(o)
+            let id = try board.identity(seed: "k48-3g")
+            #expect(id["model-number"] == (cellular ? "MC349" : "MB292"))
+            #expect((id["imei"] != nil) == cellular)
+            #expect(board.machineOptions["imei"] == id["imei"])
+            if let imei = id["imei"] {
+                #expect(imei.hasPrefix("00000000") && imei.count == 15)
+                #expect(
+                    id["udid"]
+                        == IPhoneIdentity.udid(
+                            serial: id["serial-number"]!,
+                            imei: imei,
+                            wifiMAC: id["wifi-mac"]!,
+                            btMAC: id["bt-mac"]!
+                        )
+                )
+            }
+        }
+        var n90 = try Oracle.entry("k48ap-7B500")
+        n90.board = "n90ap"
+        n90.recipe?.options["cellular"] = true
+        #expect(throws: FirmwareError.self) {
+            try K48Board(Preparer.Options(entry: n90, ipsw: dir, out: dir, helper: nil, guestTools: dir))
+        }
+    }
 }
